@@ -1,7 +1,10 @@
 <template>
   <div class="app-layout">
     <NuxtRouteAnnouncer />
-    <NuxtPage />
+    <AppNavbar />
+    <main class="app-main">
+      <NuxtPage />
+    </main>
   </div>
 </template>
 
@@ -30,9 +33,23 @@ body {
     'Open Sans',
     'Helvetica Neue',
     sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-layout {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1;
+}
+
+/* Global utility classes */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
 }
 </style>
