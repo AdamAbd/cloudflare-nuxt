@@ -32,10 +32,16 @@ CREATE TRIGGER update_notes_updated_at
 
 -- 7. Definisikan Policies
 -- Policy: Publik bisa melihat (Hanya jika Anda ingin isi notes bersifat publik)
-CREATE POLICY "Public can read notes"
+-- CREATE POLICY "Public can read notes"
+--     ON notes FOR SELECT
+--     TO anon
+--     USING (true);
+
+-- Enable users to view their own data only
+CREATE POLICY "Users can view their own data"
     ON notes FOR SELECT
-    TO anon
-    USING (true);
+    TO authenticated
+    USING (auth.uid() = user_id);
 
 -- Policy: User hanya bisa insert data milik sendiri
 CREATE POLICY "Users can insert notes"
