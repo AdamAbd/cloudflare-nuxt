@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { VueQueryDevtools } from '@tanstack/vue-query-devtools'
+
 useHead({
   title: 'Cloudflare Nuxt',
   meta: [
@@ -17,6 +19,9 @@ useHead({
     <main class="app-main">
       <NuxtPage />
     </main>
+    <ClientOnly>
+      <VueQueryDevtools />
+    </ClientOnly>
   </div>
 </template>
 

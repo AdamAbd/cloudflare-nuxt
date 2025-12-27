@@ -1,94 +1,106 @@
 <script setup>
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+
 const user = useSupabaseUser()
 const supabase = useSupabaseClient()
-
-const notes = ref([])
-const loading = ref(false)
-const isAdding = ref(false)
+const queryClient = useQueryClient()
 
 // Form state
+const isAdding = ref(false)
 const newNote = ref({ title: '', content: '' })
 const editingNote = ref(null)
 
-const fetchNotes = async () => {
-  try {
-    loading.value = true
+// Queries
+const {
+  data: notes,
+  isLoading: loading,
+  error: fetchError,
+} = useQuery({
+  queryKey: ['notes'],
+  queryFn: async () => {
     const { data, error } = await supabase
       .from('notes')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (error) throw error
-    notes.value = data
-  } catch (error) {
-    console.error('Error fetching notes:', error.message)
-  } finally {
-    loading.value = false
-  }
-}
+    return data
+  },
+})
 
-const addNote = async () => {
-  if (!user.value) return alert('You must be logged in to add notes')
-  if (!newNote.value.title || !newNote.value.content) return
-
-  try {
-    loading.value = true
-    const { error } = await supabase.from('notes').insert({
-      title: newNote.value.title,
-      content: newNote.value.content,
-    })
-
+// Mutations
+const addNoteMutation = useMutation({
+  mutationFn: async (note) => {
+    if (!user.value) throw new Error('You must be logged in to add notes')
+    const { data, error } = await supabase.from('notes').insert(note)
     if (error) throw error
-
+    return data
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['notes'] })
     newNote.value = { title: '', content: '' }
     isAdding.value = false
-    await fetchNotes()
-  } catch (error) {
+  },
+  onError: (error) => {
     alert(error.message)
-  } finally {
-    loading.value = false
-  }
-}
+  },
+})
 
-const updateNote = async () => {
-  if (!editingNote.value.title || !editingNote.value.content) return
-
-  try {
-    loading.value = true
-    const { error } = await supabase
+const updateNoteMutation = useMutation({
+  mutationFn: async (note) => {
+    const { data, error } = await supabase
       .from('notes')
       .update({
-        title: editingNote.value.title,
-        content: editingNote.value.content,
+        title: note.title,
+        content: note.content,
       })
-      .eq('id', editingNote.value.id)
-
+      .eq('id', note.id)
     if (error) throw error
-
+    return data
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['notes'] })
     editingNote.value = null
-    await fetchNotes()
-  } catch (error) {
+  },
+  onError: (error) => {
     alert(error.message)
-  } finally {
-    loading.value = false
-  }
-}
+  },
+})
 
-const deleteNote = async (id) => {
-  if (!confirm('Are you sure you want to delete this note?')) return
-
-  try {
+const deleteNoteMutation = useMutation({
+  mutationFn: async (id) => {
     const { error } = await supabase.from('notes').delete().eq('id', id)
     if (error) throw error
-    await fetchNotes()
-  } catch (error) {
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['notes'] })
+  },
+  onError: (error) => {
     alert(error.message)
-  }
+  },
+})
+
+const addNote = () => {
+  if (!newNote.value.title || !newNote.value.content) return
+  addNoteMutation.mutate({
+    title: newNote.value.title,
+    content: newNote.value.content,
+  })
 }
 
-onMounted(() => {
-  fetchNotes()
-})
+const updateNote = () => {
+  if (!editingNote.value.title || !editingNote.value.content) return
+  updateNoteMutation.mutate(editingNote.value)
+}
+
+const deleteNote = (id) => {
+  if (!confirm('Are you sure you want to delete this note?')) return
+  deleteNoteMutation.mutate(id)
+}
+
+const isSaving = computed(
+  () => addNoteMutation.isPending.value || updateNoteMutation.isPending.value,
+)
 </script>
 
 <template>
@@ -117,9 +129,9 @@ onMounted(() => {
         <button
           @click="editingNote ? updateNote() : addNote()"
           class="btn btn-primary"
-          :disabled="loading"
+          :disabled="isSaving"
         >
-          {{ loading ? 'Saving...' : editingNote ? 'Save Changes' : 'Create Note' }}
+          {{ isSaving ? 'Saving...' : editingNote ? 'Save Changes' : 'Create Note' }}
         </button>
         <button @click="((isAdding = false), (editingNote = null))" class="btn btn-secondary">
           Cancel
@@ -127,13 +139,21 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Error state -->
+    <div v-if="fetchError" class="error-alert mb-8">
+      Error loading notes: {{ fetchError.message }}
+      <button @click="queryClient.invalidateQueries({ queryKey: ['notes'] })" class="btn-text">
+        Retry
+      </button>
+    </div>
+
     <!-- Notes List -->
-    <div v-if="loading && !notes.length" class="text-center py-12">
+    <div v-if="loading && !notes?.length" class="text-center py-12">
       <div class="spinner"></div>
       <p class="mt-4 text-gray-500">Loading your notes...</p>
     </div>
 
-    <div v-else-if="notes.length" class="notes-grid">
+    <div v-else-if="notes?.length" class="notes-grid">
       <div v-for="note in notes" :key="note.id" class="note-card">
         <div class="note-content">
           <h3 class="note-title">{{ note.title }}</h3>
@@ -314,6 +334,26 @@ onMounted(() => {
 .btn-secondary {
   background: #f1f5f9;
   color: #475569;
+}
+
+.error-alert {
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  color: #b91c1c;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .spinner {
