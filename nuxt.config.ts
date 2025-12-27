@@ -10,4 +10,7 @@ export default defineNuxtConfig({
       exclude: ['/', '/signup'],
     },
   },
+  nitro: {
+    preset: 'cloudflare-pages',
+  },
 })
