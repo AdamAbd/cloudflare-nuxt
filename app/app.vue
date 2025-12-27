@@ -1,3 +1,15 @@
+<script setup lang="ts">
+useHead({
+  title: 'Cloudflare Nuxt',
+  meta: [
+    {
+      name: 'description',
+      content: 'Belajar Cloudflare Nuxt',
+    },
+  ],
+})
+</script>
+
 <template>
   <div class="app-layout">
     <NuxtRouteAnnouncer />
