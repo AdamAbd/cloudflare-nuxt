@@ -108,7 +108,7 @@ const handleGoogleLogin = async () => {
             fill="#EA4335"
           />
         </svg>
-        Google
+        Sign In with Google
       </button>
 
       <div class="auth-footer">
